@@ -16,6 +16,7 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 // For this coursework, the helper file has 2 routines in addition to simpleOpenContext_GPU() and compileKernelFromFile():
 // getCmdLineArg()  :  Parses grid size N from command line argument, or fails with error message.
@@ -105,6 +106,47 @@ int main( int argc, char **argv )
         printf("Failed to read buffer: Error %d\n", status);
         return EXIT_FAILURE;
     }
+
+    // Allocate memory for the CPU reference grid.
+    float *cpuGrid = (float*) malloc(N * N * sizeof(float));
+
+    // Perform the heat equation on the CPU.
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            if (i == 0 || j == 0 || i == N - 1 || j == N - 1) {
+                cpuGrid[i * N + j] = 0.0f; // Boundary cells remain zero.
+            } else {
+                cpuGrid[i * N + j] = 0.25f * (
+                    hostGrid[i * N + (j - 1)] + // Left
+                    hostGrid[i * N + (j + 1)] + // Right
+                    hostGrid[(i - 1) * N + j] + // Top
+                    hostGrid[(i + 1) * N + j]   // Bottom
+                );
+            }
+        }
+    }
+
+    // Compare GPU results with CPU results.
+    int mismatchCount = 0;
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            float gpuValue = hostGrid[i * N + j];
+            float cpuValue = cpuGrid[i * N + j];
+            if (fabs(gpuValue - cpuValue) > 1e-6) { // Allow a small tolerance for floating-point differences.
+                printf("Mismatch at (%d, %d): GPU = %f, CPU = %f\n", i, j, gpuValue, cpuValue);
+                mismatchCount++;
+            }
+        }
+    }
+
+    if (mismatchCount == 0) {
+        printf("All values match between GPU and CPU results!\n");
+    } else {
+        printf("Total mismatches: %d\n", mismatchCount);
+    }
+
+    // Free the CPU reference grid.
+    free(cpuGrid);
 
     // Release device memory and kernel.
     clReleaseMemObject(inputGrid);
