@@ -76,9 +76,21 @@ int main( int argc, char **argv )
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &outputGrid);
     clSetKernelArg(kernel, 2, sizeof(int), &N);
 
-    // Define the global and local work sizes.
-    size_t globalWorkSize[2] = {N, N};
-    size_t localWorkSize[2] = {16, 16}; // Adjust based on device capabilities.
+    // Query the device's maximum work-group size.
+    size_t maxWorkGroupSize;
+    clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &maxWorkGroupSize, NULL);
+
+    // Dynamically calculate the local work size.
+    size_t localWorkSize[2] = { (size_t)N, (size_t)N };
+    if (localWorkSize[0] > maxWorkGroupSize) localWorkSize[0] = maxWorkGroupSize;
+    if (localWorkSize[1] > maxWorkGroupSize) localWorkSize[1] = maxWorkGroupSize;
+
+    // Ensure local work size does not exceed the grid size.
+    if (localWorkSize[0] > (size_t)N) localWorkSize[0] = (size_t)N;
+    if (localWorkSize[1] > (size_t)N) localWorkSize[1] = (size_t)N;
+
+    // Define the global work size.
+    size_t globalWorkSize[2] = { (size_t)N, (size_t)N };
 
     // Enqueue the kernel for execution.
     status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
