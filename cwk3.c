@@ -23,6 +23,23 @@ int main(int argc, char **argv) {
     printf("Original grid (only top-left shown if too large):\n");
     displayGrid(hostGrid, N);
 
+    // Perform the heat equation on the CPU for validation.
+    float *cpuGrid = (float *)malloc(N * N * sizeof(float));
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            if (i == 0 || j == 0 || i == N - 1 || j == N - 1) {
+                cpuGrid[i * N + j] = 0.0f;
+            } else {
+                // Compute the average of the 4 neighbors.
+                float left = hostGrid[i * N + (j - 1)];
+                float right = hostGrid[i * N + (j + 1)];
+                float top = hostGrid[(i - 1) * N + j];
+                float bottom = hostGrid[(i + 1) * N + j];
+                cpuGrid[i * N + j] = 0.25f * (left + right + top + bottom);
+            }
+        }
+    }
+
     // Allocate device memory for input and output grids.
     cl_mem inputGrid = clCreateBuffer(context, CL_MEM_READ_ONLY, N * N * sizeof(float), NULL, &status);
     cl_mem outputGrid = clCreateBuffer(context, CL_MEM_WRITE_ONLY, N * N * sizeof(float), NULL, &status);
@@ -67,23 +84,6 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    // Perform the heat equation on the CPU for validation.
-    float *cpuGrid = (float *)malloc(N * N * sizeof(float));
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            if (i == 0 || j == 0 || i == N - 1 || j == N - 1) {
-                cpuGrid[i * N + j] = 0.0f;
-            } else {
-                cpuGrid[i * N + j] = 0.25f * (
-                    hostGrid[i * N + (j - 1)] +
-                    hostGrid[i * N + (j + 1)] +
-                    hostGrid[(i - 1) * N + j] +
-                    hostGrid[(i + 1) * N + j]
-                );
-            }
-        }
-    }
-
     // Compare GPU results with CPU results.
     int mismatchCount = 0;
     for (int i = 0; i < N; i++) {
@@ -103,7 +103,11 @@ int main(int argc, char **argv) {
         printf("Total mismatches: %d\n", mismatchCount);
     }
 
-    // Free resources.
+    // Display the final result. This assumes that the iterated grid was copied back to the hostGrid array.
+    printf("Final grid (only top-left shown if too large):\n");
+    displayGrid(hostGrid, N);
+
+    // Release all resources.
     free(cpuGrid);
     free(hostGrid);
     clReleaseMemObject(inputGrid);
