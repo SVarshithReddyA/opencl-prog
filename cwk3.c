@@ -60,7 +60,44 @@ int main( int argc, char **argv )
 	// Allocate memory for the grid(s) on the GPU and apply the heat equation as per the instructions.
 	//
 
-	// Your solution should primarily go here.
+    // Allocate device memory for input and output grids.
+    cl_mem inputGrid = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, N * N * sizeof(float), hostGrid, &status);
+    cl_mem outputGrid = clCreateBuffer(context, CL_MEM_WRITE_ONLY, N * N * sizeof(float), NULL, &status);
+	
+    //
+	// Perform the calculation on the GPU.
+	//
+
+    // Compile the kernel from the file.
+    cl_kernel kernel = compileKernelFromFile("cwk3.cl", "heatEquation", context, device);
+
+    // Set kernel arguments.
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), &inputGrid);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), &outputGrid);
+    clSetKernelArg(kernel, 2, sizeof(int), &N);
+
+    // Define the global and local work sizes.
+    size_t globalWorkSize[2] = {N, N};
+    size_t localWorkSize[2] = {16, 16}; // Adjust based on device capabilities.
+
+    // Enqueue the kernel for execution.
+    status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
+    if (status != CL_SUCCESS) {
+        printf("Failed to enqueue kernel: Error %d\n", status);
+        return EXIT_FAILURE;
+    }
+
+    // Copy the result back to the host.
+    status = clEnqueueReadBuffer(queue, outputGrid, CL_TRUE, 0, N * N * sizeof(float), hostGrid, 0, NULL, NULL);
+    if (status != CL_SUCCESS) {
+        printf("Failed to read buffer: Error %d\n", status);
+        return EXIT_FAILURE;
+    }
+
+    // Release device memory and kernel.
+    clReleaseMemObject(inputGrid);
+    clReleaseMemObject(outputGrid);
+    clReleaseKernel(kernel);
 
     //
     // Display the final result. This assumes that the iterated grid was copied back to the hostGrid array.
