@@ -17,10 +17,6 @@ __kernel void heatEquation(
         outputGrid[idx] = 0.0f;
         return; // Exit early for boundary cells.
     }
-
-    // Debugging: Print the indices being processed.
-    printf("Processing cell (%d, %d)\n", row, col);
-
     // Compute the average of the 4 neighbors.
     float left = inputGrid[idx - 1];
     float right = inputGrid[idx + 1];
