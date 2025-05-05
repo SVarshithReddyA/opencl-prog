@@ -70,6 +70,10 @@ int main(int argc, char **argv) {
         (size_t)((N + localWorkSize[1] - 1) / localWorkSize[1]) * localWorkSize[1]
     };
 
+    // Debugging: Print work sizes.
+    printf("Global work size: (%zu, %zu)\n", globalWorkSize[0], globalWorkSize[1]);
+    printf("Local work size: (%zu, %zu)\n", localWorkSize[0], localWorkSize[1]);
+
     // Enqueue the kernel for execution.
     status = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalWorkSize, localWorkSize, 0, NULL, NULL);
     if (status != CL_SUCCESS) {
